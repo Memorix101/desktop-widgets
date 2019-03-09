@@ -6,6 +6,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using SDL2;
+using System.Windows.Interop;
+using System.Windows;
 
 namespace NyanCat_Pointer
 {
@@ -31,6 +33,42 @@ namespace NyanCat_Pointer
                 PointInter lpPoint;
                 GetCursorPos(out lpPoint);
                 return (Point)lpPoint;
+            }
+        }
+
+
+        internal static class Window
+        {
+
+            [DllImport("user32.dll")]
+            public static extern long SetWindowLong(IntPtr hWnd, int nIndex, long dwNewLong);
+
+            [DllImport("user32.dll")]
+            static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
+
+            public const int GWL_EXSTYLE = -20;
+            public const int WS_EX_LAYERED = 0x80000;
+            public const int LWA_ALPHA = 0x2;
+            public const int LWA_COLORKEY = 0x1;
+
+            [DllImport("user32.dll")]
+            private static extern long GetWindowLong(IntPtr hWnd, int nIndex);
+
+            // Makes a window transparent by setting a transparency color.
+            public static bool MakeWindowTransparent(IntPtr sdl_window, uint colorKey)
+            {
+                // Get window handle (https://stackoverflow.com/a/24118145/3357935)
+                //https://stackoverflow.com/questions/10675305/how-to-get-the-hwnd-of-window-instance
+                // Get the Win32 HWND from the FNA window
+                SDL.SDL_SysWMinfo info = new SDL.SDL_SysWMinfo();
+                SDL.SDL_GetWindowWMInfo(sdl_window, ref info);
+                IntPtr winHandle = info.info.win.window;
+
+                // Change window type to layered (https://stackoverflow.com/a/3970218/3357935)
+                SetWindowLong(winHandle = info.info.win.window, GWL_EXSTYLE, GetWindowLong(winHandle, GWL_EXSTYLE) | WS_EX_LAYERED);
+
+                // Set transparency color
+                return SetLayeredWindowAttributes(winHandle, colorKey, 0, LWA_COLORKEY);
             }
         }
 
@@ -214,6 +252,15 @@ namespace NyanCat_Pointer
                 Console.WriteLine("Unable to play music");
             }
 
+            // Add window transparency (Magenta will be see-through)
+            Window.MakeWindowTransparent(windows_body, 0x000000);
+            Window.MakeWindowTransparent(window_head, 0x000000);
+            Window.MakeWindowTransparent(window_tail, 0x000000);
+            Window.MakeWindowTransparent(window_feet0, 0x000000);
+            Window.MakeWindowTransparent(window_feet1, 0x000000);
+            Window.MakeWindowTransparent(window_feet2, 0x000000);
+            Window.MakeWindowTransparent(window_feet3, 0x000000);
+
             while (!quit)
             {
                 deltaTime = (SDL.SDL_GetTicks() - lastTick) / 1000;
@@ -264,7 +311,7 @@ namespace NyanCat_Pointer
                 var p = CursorPosition.GetCursorPosition();
                 //x = p.X;
                 //y = p.Y;
-                int vX = 100+((int)x - p.X) / 5;
+                int vX = 100 + ((int)x - p.X) / 5;
                 int vY = ((int)y - p.Y) / 5;
                 x -= vX;
                 y -= vY;
